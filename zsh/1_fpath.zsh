@@ -1,0 +1,1 @@
+fpath=($HOME/.fpath $fpath $HOME/.zfunctions)

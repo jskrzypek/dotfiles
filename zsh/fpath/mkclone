@@ -1,0 +1,60 @@
+mkclone() {
+  cd "$HOME/dev" || return
+  cmd="${1%%:*}"
+  source="${1##*:}"
+  echo "Requested repo is: '$source' (input: '$1', scheme: '$cmd')"
+  if [[ $1 != "$source" ]]; then
+    echo "Found scheme: '$cmd'"
+  else
+    cmd="gh"
+    echo "No scheme found, using '$cmd'"
+  fi
+  case "$source" in
+    *github.com/*/*)
+      echo "'$1' is on github, using 'gh'"
+      cmd=gh
+      target="${source##*github.com/}"
+      ;;
+    *gitlab.com/*/*)
+      echo "'$1' is on gitlab, using 'glab'"
+      cmd=glab
+      target="${source##*gitlab.com/}"
+      ;;
+    ///*)
+      echo "'$1' is a file URI, why do you want to clone that?"
+      return 1
+      ;;
+    //*.*/*/*)
+      echo "'$1' is a URI, dropping // prefix from '$source'."
+      target="${source#//*.*/}"
+      ;;
+    */*/*)
+      echo "There are too many segments in '$1'!"
+      return 1
+      ;;
+    */*)
+      echo "Assuming '$1' is GH repo."
+      target="${source}"
+      ;;
+    *)
+      echo "Don't know how to parse '$1'!"
+      return 1
+      ;;
+  esac
+  echo "Using '$cmd' to clone '$1' into ~/dev/${target%%/*}"
+  mkdir -p "${target%%/*}"
+  case "$cmd" in
+    git*|http*)
+      runme=(git clone "$1" "$target")
+      ;;
+    gh|glab)
+      runme=("$cmd" repo clone "$target" "$target")
+      ;;
+    *)
+      echo "Don't know what to do with '$cmd' from '$1'!"
+      return 2
+      ;;
+  esac
+  "${runme[@]}" || return
+  cd "$target" || return
+}

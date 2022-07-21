@@ -1,0 +1,6 @@
+chpy() {
+    # curr=
+    # available=$(which -a python3)
+    echo "Not implemented yet!"
+    exit 1
+}

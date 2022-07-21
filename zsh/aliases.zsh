@@ -211,3 +211,12 @@ alias dbmu='spring rake db:migrate:up'
 
 # Homebrew
 alias brewu='brew update && brew upgrade && brew cleanup && brew doctor'
+
+alias gfo="git fo"
+alias gffo="git ffo"
+alias gco="git co"
+alias gcfo="git cfo"
+alias gcffo="git cffo"
+alias gro="git ro"
+alias grfo="git rfo"
+alias grffo="git rffo"
