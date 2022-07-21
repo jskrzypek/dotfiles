@@ -45,3 +45,10 @@ Session.vim
 # SASS
 # ----------------------------------------------------------------------------------------------
 .sass-cache
+*.sw*
+.classpath
+.project
+.settings/
+.dir-locals.el
+.stack-work-profiling
+.projectile
