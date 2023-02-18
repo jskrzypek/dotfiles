@@ -23,6 +23,7 @@ zstyle ':prezto:*:*' color 'yes'
 
 # Set the Prezto modules to load (browse modules).
 # The order matters.
+echo "Loading prezto modules"
 zstyle ':prezto:load' pmodule \
   'environment' \
   'terminal' \
@@ -33,15 +34,15 @@ zstyle ':prezto:load' pmodule \
   'utility' \
   'completion' \
   'archive' \
+  'direnv' \
   'fasd' \
   'fzf' \
+  'gpg' \
   'git' \
   'osx' \
   'homebrew' \
   'python' \
-  'fnm' \
   'emacs' \
-  'direnv' \
   'kubernetes' \
   'iterm2' \
   'syntax-highlighting' \

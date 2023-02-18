@@ -1,1 +1,1 @@
-fpath=($HOME/.fpath $fpath $HOME/.zfunctions)
+fpath=($HOME/.fpath $fpath /opt/homebrew/share/zsh/site-functions $HOME/.zfunctions)
