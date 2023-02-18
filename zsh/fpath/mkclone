@@ -29,11 +29,13 @@ mkclone() {
       target="${source#//*.*/}"
       ;;
     */*/*)
-      echo "There are too many segments in '$1'!"
-      return 1
-      ;;
+      if [[ $cmd != glab ]]; then
+        echo "There are too many segments in '$1'!"
+        return 1
+      fi
+      ;&
     */*)
-      echo "Assuming '$1' is GH repo."
+      echo "Assuming '$1' is a $cmd repo."
       target="${source}"
       ;;
     *)
