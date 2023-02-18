@@ -65,7 +65,7 @@
   rs = rebase --skip                # skip rebase
 
   # remote
-  r = remote -v                     # show remotes (verbose)
+  rv = remote -v                     # show remotes (verbose)
 
   # reset
   unstage = reset HEAD              # remove files from index (tracking)
@@ -143,7 +143,7 @@
   rs = rebase --skip                # skip rebase
 
   # remote
-  r = remote -v                     # show remotes (verbose)
+  rv = remote -v                     # show remotes (verbose)
 
   # reset
   unstage = reset HEAD              # remove files from index (tracking)
@@ -170,6 +170,13 @@
   svnd = svn dcommit
   svnl = svn log --oneline --show-commit
 
+  undo = !git add -A && git commit -qm \"UNDO SAVEPOINT\" && git reset HEAD~1 --hard
+  bclean = "!f() { git branch-merged ${1-master} | xargs git branch -D; }; f"
+  la = !git config -l | grep alias | cut -c 7-
+  b = !git for-each-ref --sort="-authordate" --format="%(authordate)%09%(objectname:short)%09%(refname)" refs/heads | sed -e "s-refs/heads/--"
+  ready = rebase -i master
+  ready-root = rebase -i --root
+
   cob = checkout -b
   s = status -sb
   l = log --graph --pretty=\"format:%C(yellow)%h%C(cyan)%d%Creset %s %C(white)- %an, %ar%Creset\"
@@ -180,46 +187,75 @@
   dfo = "!f() { git fo $1 1>&2; git df $1; }; f"
   dffo = "!f() { git ffo $1 1>&2; git df $1; }; f"
   wip = !git add . && git commit -m WIP
-  cm = !git add . && git commit -m 
-  undo = !git add -A && git commit -qm \"UNDO SAVEPOINT\" && git reset HEAD~1 --hard
-  bclean = "!f() { git branch-merged ${1-master} | xargs git branch -D; }; f"
-  la = !git config -l | grep alias | cut -c 7-
-  b = !git for-each-ref --sort="-authordate" --format="%(authordate)%09%(objectname:short)%09%(refname)" refs/heads | sed -e "s-refs/heads/--"
-  ready = rebase -i master
-  ready-root = rebase -i --root
+  cm = !git add . && git commit -m
   sync = "!f() { git pull --rebase --recurse-submodules=yes origin $(git rev-parse --abbrev-ref ${1-HEAD}); }; f"
-  
+
   can = commit --amend --no-edit
 
+  ok-branch = "!f() { if [[ $# -eq 2 ]]; then rem=$(git swr $2 || echo $1) refpath=remotes/${rem}/${2##$rem/}; elif git swr $1; then refpath=remotes/$1; else refpath=heads/$1; fi; git show-ref --verify --quiet refs/$refpath && echo ${refpath#*/}; }; f"
+  okb = ok-branch
+  ok-local-branches = "!f() { echo $* | xargs -n1 git okb; }; f"
+  oklb = ok-local-branches
+  ok-remotes = !bash -c 'grep -xFf- < <(git remote) <(echo $* | xargs -n1)' git-ok-remotes
+  okr = ok-remotes
+  origin-ok = "!f() { git okr origin; }; f"
+  ok-remote-branches = "!f() { if rem=$(git okr $1); then set -- ${@:2}; else rem=origin; fi; echo $* | xargs -n1 git okb $rem; }; f"
+  okrb = ok-remote-branches
+  remote-exists = !bash -c '[[ $(grep -Ewvcm1 -f- < <(git remote | sed -e s:$:/?:) <(echo $* | xargs -n1)) = 0 ]]' git-rx
+  rx = remote-exists
+  rx-any =  !bash -c '[[ $(grep -Ew -f- < <(git remote | sed -e s:$:/?:) <(echo $* | xargs -n1)) = 0 ]]' git-rx-any
+  srr = "!f() { git rx $1 && git symbolic-ref refs/remotes/$1/$2; }; f"
+  starts-with-remote = "!f() { local head=${1%%/*} rest=${1#*/}; until [[ $head = $1 ]]; do if git rx $head; then break; else head=${head}/${rest%%/*} rest=${rest#*/}; fi; done; git okr $head; }; f"
+  swr = starts-with-remote
 
+  rvs = "!f() { if git okr $1 && ! git okrb $1; then rev=$1/${2:-HEAD}; else rev=$1${2:+/$2}; fi; git rev-parse --quiet --verify --abbrev-ref --symbolic-full-name $rev; }; f"
+
+  revu = "!f() { if [[ $# -ge 1 ]]; then ref=$(echo $* | tr [:blank:] /); fi; if rb=$(git okrb $ref); then git rvs $rb; else git rvs ${ref:-HEAD}@{u}; fi; }; f"
+
+  br = "!f() { if [[ -n $2 ]]; then git okr $1; else git swr $(git revu $1); fi; }; f"
   sro = "!f() { git symbolic-ref refs/remotes/origin/$1; }; f"
-  bno = "!f() { git rev-parse --abbrev-ref origin${1+/}$1; }; f"
-  bn = "!f() { if br=$(git bno $1); then cut -d/ -f2- <<< $br; else echo $1; fi }; f"
-  ro = "!f() { git rebase --autosquash -i $(git bno $1); }; f"
-  rebo = ro
-  fo = "!f() { local branch=$(git bn $1); git fetch origin $branch:$branch --prune; }; f"
-  ffo = "!f() { local branch=$(git bn $1); git fetch origin $branch:$branch --prune --force; }; f"
-  cfo = "!f() { local branch=$(git bn $1); git fo $branch; git co $branch; }; f"
-  cffo = "!f() { local branch=$(git bn $1); git ffo $branch; git co $branch; }; f"
-  rfo = "!f() { local branch=$(git bn $1); git fo $branch; git rebo $branch; }; f"
-  rffo = "!f() { local branch=$(git bn $1); git ffo $branch; git rebo $branch; }; f"
-  bdone = "!f() { local branch=$(git rev-parse --abbrev-ref ${1-HEAD}) ; git cfo  && git branch -d $branch; }; f"
+  bno = "!f() { br=$1${2:+/$2}; git revu $br || git revu origin/$br; }; f"
+  rbn = "!f() { rem=$(git br $@); if br=$(git bno $@); then echo ${br##$rem/}; else echo $@; fi }; f"
+  bn = rvs
 
-  is-unmerged = "! f() { local branch=$(git rev-parse --abbrev-ref ${1-HEAD}) ; local base=${2-$(git bno)} ; echo $(git cherry $base $(git commit-tree $(git rev-parse $branch^{tree}) -p $(git merge-base $base $branch) -m _) | cut -f1 -d' ') $branch; }; f"
+  fsig = "!f() { br=$(git br $@); rbn=$(git rbn $@); lbn=$(git rvs $@); printf '%s %s:%s' $br $rbn ${lbn:-$rbn}; }; f"
+  f = "!f() { git fetch $(git fsig $@) --prune; }; f"
+  fu = "!f() { git fetch $(git fsig $@) --prune --set-upstream; }; f"
+  fo = f
+  ff = "!f() { git fetch $(git fsig $@) --prune --force; }; f"
+  ffu = "!f() { git fetch $(git fsig $@) --prune --set-upstream --force; }; f"
+  ffo = ff
+  # ffo = "!f() { local lbranch=$(git rvs $@) rbranch=$(git bn $@) remote=$(git br $@); git fetch $remote $rbranch:$lbranch --prune --force; }; f"
+  r = "!f() { git rebase --autosquash -i $(git rbn $@); }; f"
+  ro = r
+  rebo = ro
+  cf = "!f() { local branch=$(git bn $@ || echo $1); git f $branch; git checkout $branch; }; f"
+  cff = "!f() { local branch=$(git bn $@ || echo $1); git ff $branch; git checkout $branch; }; f"
+  rf = "!f() { git fetch origin $1 || true; local branch=$(git bn $@ || echo $1); git f $branch; git r $branch; }; f"
+  rff = "!f() { git fetch origin $1 || true; local branch=$(git bn $@ || echo $1); git ff $branch; git r $branch; }; f"
+  cfo = cf
+  cffo = cff
+  rfo = rf
+  rffo = rff
+
+  bdone = "!f() { local branch=$(git rev-parse --abbrev-ref ${1-HEAD}) ; git cf origin/HEAD && git branch -d $branch; }; f"
+
+  bno-old = "!f() { br=$1${2:+/$2}; git rev-parse --quiet --verify --abbrev-ref $br || git rev-parse --quiet --verify --abbrev-ref origin/$br; }; f"
+  is-unmerged = "! f() { local branch=$(git rev-parse --abbrev-ref ${1-HEAD}) ; local base=${2-$(git bno-old)} ; echo $(git cherry $base $(git commit-tree $(git rev-parse $branch^{tree}) -p $(git merge-base $base $branch) -m _) | cut -f1 -d' ') $branch; }; f"
   branch-merged = "! f() { git for-each-ref refs/heads/ '--format=%(refname:short)' | xargs -I {} git is-unmerged {} ${1-master} | egrep '^-' | cut -f2 -d' ' ; }; f"
-  
+
   clean-merged-branches = "!f() { git checkout -q ${1-master} && git branch-merged ${1-master} | xargs -n1 -p git branch -D; }; f"
   bsync = "!f() { git pull --rebase=merges --recurse-submodules=yes origin ${1-master}; }; f"
   upstream = "!f() { git remote add upstream https://github.com/$1.git; }; f"
   syncu = "!f() { git checkout ${1-master} && git fetch upstream && git rebase upstream/master; }; f"
-  
+
   # bclean = !f() { git branch-merged ${1-master} | xargs git branch -D } f
   # bdone = !f() { local branch=$(git rev-parse --abbrev-ref ${1-HEAD})  git checkout ${1-master} && git sync && git branch -d $branch } f
   # la = !git config -l | grep alias | cut -c 7-
   # b = !git for-each-ref --sort="-authordate" --format="%(authordate)%09%(objectname:short)%09%(refname)" refs/heads | sed -e "s-refs/heads/--"
   # ready = rebase -i master
   # ready-root = rebase -i --root
-  # sync = !f() { git pull --rebase --recurse-submodules=yes origin $(git rev-parse --abbrev-ref ${1-HEAD}) } f 
+  # sync = !f() { git pull --rebase --recurse-submodules=yes origin $(git rev-parse --abbrev-ref ${1-HEAD}) } f
   # bsync = !f() { git pull --rebase=merges --recurse-submodules=yes origin ${1-master} } f
   # upstream = !f() { git remote add upstream https://github.com/$1.git } f
   # syncu = !f() { git checkout ${1-master} && git fetch upstream && git rebase upstream/master } f
